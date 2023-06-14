@@ -10,7 +10,7 @@ if __name__ == "__main__":
     user.startUp()
     
     app = QApplication(sys.argv)
-    window = BoardWindow()
+    window = BoardWindow(user)
     window.show()
-    
+
     sys.exit(app.exec())
