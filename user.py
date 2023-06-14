@@ -1,9 +1,12 @@
 import sys
 import re
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 
-class User:
+class User(QtCore.QObject):
+    save_complete = QtCore.pyqtSignal()  # Custom signal to indicate saving is complete
+
     def __init__(self):
+        super().__init__()
         self.startX = 0
         self.startY = 0
         self.endX = 0
@@ -33,15 +36,17 @@ class User:
         if self.endX is None or self.endY is None:
             print("Invalid end node")
             return
+        
+        self.save_complete.emit()  # Emit the save complete signal
 
-        print(f"Start Node: ({self.startX}, {self.startY})")
-        print(f"End Node: ({self.endX}, {self.endY})")
+    def returnNodes(self):
+        return self.startX, self.startY, self.endX, self.endY
 
     def startUp(self):
         app = QtWidgets.QApplication(sys.argv)
 
         window = QtWidgets.QMainWindow()
-        window.setWindowTitle("Two Text Fields")
+        window.setWindowTitle("A* Algorithm")
         window.setGeometry(100, 100, 400, 200)
         window.setFixedSize(400, 200)
 
@@ -65,6 +70,8 @@ class User:
         button.clicked.connect(lambda _, t1=text_edit_1, t2=text_edit_2: self.save_text(t1, t2))
         layout.addWidget(button)
 
+        self.save_complete.connect(window.close)  # Connect the save complete signal to window close
+
         window.show()
 
-        sys.exit(app.exec())
+        app.exec()
