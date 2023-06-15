@@ -1,14 +1,10 @@
 import sys
-from PyQt6.QtWidgets import QApplication
 from user import User
-from aStarVisualizer import BoardWindow
+from aStarVisualizer import Visualizer
 
 if __name__ == "__main__":
     user = User()
     user.startUp()
 
-    app = QApplication(sys.argv)
-    window = BoardWindow(user)
-    window.show()
-
-    sys.exit(app.exec())
+    grid = Visualizer(800, 800, 15, 2)
+    grid.run(user)

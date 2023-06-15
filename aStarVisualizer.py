@@ -1,116 +1,67 @@
-from PyQt6.QtWidgets import QMainWindow, QPushButton, QWidget, QGridLayout
-from PyQt6.QtCore import Qt
+import pygame
+from pygame.locals import *
+
+class Visualizer:
+    def __init__(self, width, height, square_size, gap):
+        self.width = width
+        self.height = height
+        self.square_size = square_size
+        self.gap = gap
+        self.screen = pygame.display.set_mode((width, height))
+        self.colors = [[(255, 255, 255) for _ in range(width // (square_size + gap))] for _ in range(height // (square_size + gap))]
+        pygame.init()
+        self.mouse_down = False
+
+    def update_color(self, row, col, color):
+        self.colors[row][col] = color
+
+    def get_square_indices(self, x, y):
+        col = x // (self.square_size + self.gap)
+        row = y // (self.square_size + self.gap)
+        return row, col
+
+    def draw_grid(self, user):
+        for row in range(self.height // (self.square_size + self.gap)):
+            for col in range(self.width // (self.square_size + self.gap)):
+                x = col * (self.square_size + self.gap)
+                y = row * (self.square_size + self.gap)
+                pygame.draw.rect(self.screen, self.colors[row][col], (x, y, self.square_size, self.square_size))
+
+        
+        self.update_color(user.startX, user.startY, (0, 0, 255))  # Update the color of the square at row 2, column 3 to red
+        self.update_color(user.endX, user.endY, (0, 0, 255))      # Update the color of the square at row 4, column 1 to blue
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                return False
+            elif event.type == MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left mouse button
+                    x, y = pygame.mouse.get_pos()
+                    row, col = self.get_square_indices(x, y)
+                    if 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
+                        self.update_color(row, col, (0, 0, 0))  # Update the color of the clicked square to red
+                        self.mouse_down = True
+            elif event.type == MOUSEBUTTONUP:
+                if event.button == 1:  # Left mouse button
+                    self.mouse_down = False
+            elif event.type == MOUSEMOTION:
+                if self.mouse_down:
+                    x, y = pygame.mouse.get_pos()
+                    row, col = self.get_square_indices(x, y)
+                    if 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
+                        self.update_color(row, col, (0, 0, 0))  # Update the color of the dragged square to red
+
+        return True
+
+    def run(self, user):
+        running = True
+        while running:
+            running = self.handle_events()
+            self.screen.fill((0, 0, 0))
+            self.draw_grid(user)
+            pygame.display.flip()
+
+        pygame.quit()
 
 
-class CustomButton(QPushButton):
-    def __init__(self, board, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.board = board
-        self.user = None
-
-    def setUser(self, user):
-        self.user = user
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.change_square_color()
-            self.board.mouse_pressed = True
-
-    def mouseMoveEvent(self, event):
-        super().mouseMoveEvent(event)
-        if self.board.mouse_pressed:
-            self.change_square_color()
-
-    def mouseReleaseEvent(self, event):
-        super().mouseReleaseEvent(event)
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.board.mouse_pressed = False
-
-    def change_square_color(self):
-        if not self.isStartOrFinishNode():
-            self.setStyleSheet("background-color: white;")
-
-    def isStartOrFinishNode(self):
-        startX, startY, endX, endY = self.user.returnNodes()
-        row, col = self.board.getButtonPosition(self)
-        return (row == startX and col == startY) or (row == endX and col == endY)
-
-
-class BoardWindow(QMainWindow):
-    def __init__(self, user):
-        super().__init__()
-        self.setWindowTitle("A Star Algorithm Visualizer")
-        self.setGeometry(100, 100, 400, 400)
-        self.grid_size = 50
-        self.button_size = 10
-        self.mouse_pressed = False
-
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
-        layout = QGridLayout(central_widget)
-
-        spacing = 3  # Adjust the spacing value as desired
-        layout.setSpacing(spacing)
-
-        # Calculate the margins to evenly distribute spacing
-        total_spacing = (self.grid_size - 1) * spacing
-        side_length = self.grid_size * self.button_size + total_spacing
-        margin = total_spacing // (self.grid_size * 2)
-        layout.setContentsMargins(margin, margin, margin, margin)
-
-        for row in range(self.grid_size):
-            for col in range(self.grid_size):
-                button = CustomButton(self, self)
-                button.setFixedSize(self.button_size, self.button_size)
-                button.setStyleSheet("background-color: grey;")
-                layout.addWidget(button, row, col)
-
-                button.clicked.connect(button.change_square_color)
-                button.setUser(user)
-                button.installEventFilter(self)
-
-        # Set the window size to be a square
-        self.setFixedSize(side_length, side_length)
-
-        central_widget.setStyleSheet("background-color: black;")
-
-        self.setStartAndFinishNodes(user)
-
-    def change_square_color(self, button):
-        if not button.isStartOrFinishNode():
-            button.setStyleSheet("background-color: white;")
-
-    def getButtonPosition(self, button):
-        layout = self.centralWidget().layout()
-        for row in range(layout.rowCount()):
-            for col in range(layout.columnCount()):
-                if layout.itemAtPosition(row, col).widget() == button:
-                    return row, col
-        return None, None
-
-    def setStartAndFinishNodes(self, user):
-        startX, startY, endX, endY = user.returnNodes()
-
-        for row in range(self.grid_size):
-            for col in range(self.grid_size):
-                square_button = self.centralWidget().layout().itemAtPosition(row, col).widget()
-                if row == startX and col == startY:
-                    square_button.setStyleSheet("background-color: green;")
-                elif row == endX and col == endY:
-                    square_button.setStyleSheet("background-color: red;")
-                else:
-                    square_button.setStyleSheet("background-color: grey;")
-
-    def eventFilter(self, obj, event):
-        if event.type() == event.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
-            self.mouse_pressed = True
-            button = obj
-            self.change_square_color(button)
-        elif event.type() == event.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
-            self.mouse_pressed = False
-        elif event.type() == event.Type.MouseMove and self.mouse_pressed:
-            button = self.childAt(event.pos())
-            if isinstance(button, CustomButton):
-                self.change_square_color(button)
-        return super().eventFilter(obj, event)
