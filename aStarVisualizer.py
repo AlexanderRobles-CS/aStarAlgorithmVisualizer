@@ -11,6 +11,7 @@ class Visualizer:
         self.colors = [[(255, 255, 255) for _ in range(width // (square_size + gap))] for _ in range(height // (square_size + gap))]
         pygame.init()
         self.mouse_down = False
+        self.allowAdjustments = True
 
     def update_color(self, row, col, color):
         self.colors[row][col] = color
@@ -31,15 +32,21 @@ class Visualizer:
         self.update_color(user.startX, user.startY, (0, 0, 255))  # Update the color of the square at row 2, column 3 to red
         self.update_color(user.endX, user.endY, (0, 0, 255))      # Update the color of the square at row 4, column 1 to blue
 
+    def toggle_adjustments(self):
+        self.allowAdjustments = not self.allowAdjustments
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == QUIT:
                 return False
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    self.toggle_adjustments()  # Toggle grid adjustments when spacebar is pressed
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     x, y = pygame.mouse.get_pos()
                     row, col = self.get_square_indices(x, y)
-                    if 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
+                    if self.allowAdjustments and 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
                         self.update_color(row, col, (0, 0, 0))  # Update the color of the clicked square to red
                         self.mouse_down = True
             elif event.type == MOUSEBUTTONUP:
@@ -49,7 +56,7 @@ class Visualizer:
                 if self.mouse_down:
                     x, y = pygame.mouse.get_pos()
                     row, col = self.get_square_indices(x, y)
-                    if 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
+                    if self.allowAdjustments and 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
                         self.update_color(row, col, (0, 0, 0))  # Update the color of the dragged square to red
 
         return True
