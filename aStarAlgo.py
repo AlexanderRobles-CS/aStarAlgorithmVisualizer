@@ -1,6 +1,24 @@
 import re
 import math
-from node import Node
+
+class Node:
+    def __init__(self):
+        self.position = None
+        self.gCost = 0
+        self.hCost = 0
+        self.fCost = 0
+        self.parent = None
+
+class Neighbor:
+    def __init__(self):
+        self.north = None
+        self.northEast = None
+        self.East = None
+        self.southEast = None
+        self.south = None
+        self.southWest = None
+        self.west = None
+        self.northWest = None
 
 class AStar:
     """
@@ -18,16 +36,25 @@ class AStar:
         self.q = Node()
 
     def extract_coordinates(self, point_string):
-        pattern = r'\((-?\d+), (-?\d+)\)'  # Pattern to match the coordinates inside parentheses
-
-        match = re.search(pattern, point_string)
-        if match:
-            x = int(match.group(1))  # Extract the first captured group as an integer
-            y = int(match.group(2))  # Extract the second captured group as an integer
+        print("point_string: " + str(point_string) + " inside extract_coordinates()")
+        # Check if the point_string is in the format (x, y)
+        if point_string.startswith("(") and point_string.endswith(")"):
+            coordinates = point_string[1:-1].split(",")  # Remove parentheses and split coordinates
+            x = str(coordinates[0]).replace("(", "")
+            y = str(coordinates[1]).replace(")", "")
             return x, y
-        else:
-            return 0, 0  # Return default coordinates if no match is found
-        
+
+        # Check if the point_string is in the format ((x, y), g)
+        elif point_string.startswith("((") and point_string.endswith(")"):
+            coordinates = point_string[2:-1].split(",")  # Remove double parentheses and split coordinates
+            position = coordinates[0] + "," + coordinates[1]  # Concatenate coordinates
+            print("position: " + str(position) + " inside extract_coordinates()")
+            x, y = self.extract_coordinates(position)  # Recursively extract coordinates
+            return x, y
+
+        # Raise an error if the point_string format is invalid
+        raise ValueError("Invalid point string format")
+
     def findSmallestFCost(self):
         smallestVal = self.OPEN[0][1]
         smallestIndex = 0
@@ -39,118 +66,154 @@ class AStar:
                 smallestIndex = index
 
         return self.OPEN[smallestIndex], smallestIndex
-    
+
     def computeNeighbors(self):
-        neighbors = []
+        neighbor = Neighbor()
 
-        x, y = self.extract_coordinates(str(self.q.position[0]))
+        print("COM{PUTE NEIGHBORS} with q: " + str(self.q.position))
+        x, y = self.extract_coordinates(str(self.q.position))
+        print("x: " + str(x) + " y: " + str(y) + " inside computeNeighbors()")
 
-        neighbors.append((x - 1, y - 1))        # top left
-        neighbors.append((x - 1, y))            # top
-        neighbors.append((x - 1, y + 1))        # up right
-        neighbors.append((x, y + 1))            # right
-        neighbors.append((x + 1, y + 1))        # down right
-        neighbors.append((x + 1, y))            # down
-        neighbors.append((x + 1, y - 1))        # down left
-        neighbors.append((x, y - 1))            # left
+        neighbor.north = (x - 1, y)
+        neighbor.northEast = (x - 1, y + 1)
+        neighbor.East = (x, y + 1)
+        neighbor.southEast = (x + 1, y + 1)
+        neighbor.south = (x + 1, y)
+        neighbor.southWest = (x + 1, y - 1)
+        neighbor.west = (x, y - 1)
+        neighbor.northWest = (x - 1, y - 1)
 
-        return neighbors
-    
-    def returnValidNeighbor(self, neighbor):
+        return neighbor
 
-        x, y = self.extract_coordinates(str(neighbor))
+    def returnValidNeighbor(self, position):
+        print("position: " + str(position) + "inside returnValidNeighbor()")
+        x, y = self.extract_coordinates(str(position))
 
-        if 0 <= x < len(self.map) and 0 <= y < len(self.map[0]) and self.map[x][y] != 3:        # check for boundaries and if it is a wall
+        print("x: " + str(x) + " y: " + str(y) + " inside returnValidNeighbor()")
+
+        if 0 <= x < len(self.map) and 0 <= y < len(self.map[0]) and self.map[x][y] != 3:
             return True
-        
         else:
             return False
-        
+
     def checkClosedList(self, neighbor):
+        print("neighbor: " + str(neighbor) + "inside checkClosedList()")
         x, y = self.extract_coordinates(str(neighbor))
 
-        for pair in self.CLOSED:
-            if pair[0] == x and pair[1] == y:
+        print("x: " + str(x) + " y: " + str(y) + " inside checkClosedList()")
+
+        for node in self.CLOSED:
+            node_x, node_y = self.extract_coordinates(str(node))
+            if node_x == x and node_y == y:
                 return True
-        else:
-            return False
-        
+        return False
+
     def distance(self, neighbor):
         neighborX, neighborY = self.extract_coordinates(str(neighbor))
-        nodeX, nodeY = self.extract_coordinates(str(self.q.position[0]))
+        nodeX, nodeY = self.extract_coordinates(str(self.q.position))
 
         dx = abs(nodeX - neighborX)
         dy = abs(nodeY - neighborY)
 
-        # return dx + dy                                                   # Manhattan distance (taxicab geometry)
-    
-        #  return max(dx, dy)                                              #  Chebyshev distance (maximum of horizontal and vertical differences)
-
-        return math.sqrt(dx**2 + dy**2)                                    #  Euclidean distance
-    
+        return math.sqrt(dx**2 + dy**2)  # Euclidean distance
 
     def heuristic(self, grid):
         goalX, goalY = self.extract_coordinates(str(grid.end))
-        nodeX, nodeY = self.extract_coordinates(str(self.q.position[0]))
+        nodeX, nodeY = self.extract_coordinates(str(self.q.position))
 
-        dx = abs(nodeX - goalX)                                          # Calculate the Euclidean distance between the node and the goal node
+        dx = abs(nodeX - goalX)
         dy = abs(nodeY - goalY)
 
         hCost = math.sqrt(dx**2 + dy**2)
-    
+
         return hCost
 
+    def heuristicSuccessor(self, successor, grid):
+        goalX, goalY = self.extract_coordinates(str(grid.end))
+        nodeX, nodeY = self.extract_coordinates(str(successor))
+
+        dx = abs(nodeX - goalX)
+        dy = abs(nodeY - goalY)
+
+        hCost = math.sqrt(dx**2 + dy**2)
+
+        return hCost
 
     def generateSuccessors(self, grid):
-        successors = []                                                    # initialize successors
+        successors = []  # initialize successors
 
-        neighbors = self.computeNeighbors()                                # compute q's neighbors
+        neighbors = self.computeNeighbors()  # compute q's neighbors
 
-        for neighbor in neighbors:
-            isValidNeighbor = self.returnValidNeighbor(neighbor)           # return if it is a valid neighbor of q
-            inClosedList = self.checkClosedList(neighbor)                  # return if neighbor is already in closed list
+        directions = ['north', 'northEast', 'East', 'southEast', 'south', 'southWest', 'west', 'northWest']
+        for direction in directions:
+                # Correct way to access neighbors
+            if direction == 'north':
+                position = neighbors.north
+            elif direction == 'northEast':
+                position = neighbors.northEast
+            elif direction == 'East':
+                position = neighbors.East
+            elif direction == 'southEast':
+                position = neighbors.southEast
+            elif direction == 'south':
+                position = neighbors.south
+            elif direction == 'southWest':
+                position = neighbors.southWest
+            elif direction == 'west':
+                position = neighbors.west
+            elif direction == 'northWest':
+                position = neighbors.northWest
+
+            isValidNeighbor = self.returnValidNeighbor(position)
+            inClosedList = self.checkClosedList(position)
 
             if isValidNeighbor and not inClosedList:
-                gCost = self.q.gCost + self.distance(neighbor)
-                hCost = self.heuristic(grid)
-                fCost = gCost + hCost
-                successors.append((neighbor, fCost))
-                self.q.parent = self.q.position                            # possible to change this later
+                successors.append(position)
 
         return successors
 
-    
-    def setPosition(self):
-        self.q.position = self.q.position = self.q.position[0]
-    
     def runAlgo(self, grid):
-        self.map = grid.grid                            # get grid 
+        self.q = Node()  # Initialize self.q as a Node object
+        self.q.position = grid.start
+        self.q.gCost = 0
+        self.map = grid.grid
+        self.OPEN.append((grid.start, 0))
 
-        self.OPEN.append((grid.start, 0))               # put starting node in OPENLIST with f_score of 0
-        self.q.gCost = 0                                # set the starting node g cost to 0
+        while len(self.OPEN) > 0:
+            self.q.position, smallestIndex = self.findSmallestFCost()
 
-        self.q.position, popQIndex = self.findSmallestFCost()    # find the node with the smallest f_score
-        self.setPosition()
+            if self.q.position == grid.end:
+                print("STOP SEARCH!")
+                break
 
-        successors = self.generateSuccessors(grid)       # filler
+            self.OPEN.pop(smallestIndex)
+            self.CLOSED.append(self.q.position)
 
-        print(successors)
-        
-        self.OPEN.pop(popQIndex)
-        
+            successors = self.generateSuccessors(grid)
 
-        # while len(self.OPEN) > 0:                                     # while OPEN list is not empty
-        #     self.q.position, smallestIndex = self.findSmallestFCost()          # find the node with the smallest f_score in the open list
+            for successor in successors:
+                print("successor: " + str(successor))
+                fCost = self.q.gCost + self.distance(successor) + self.heuristicSuccessor(successor, grid)
 
-        #     self.OPEN.pop(smallestIndex)                              # pop q off the OPEN list
-        #     successors = self.generateSuccessors()                    # generate q's 8 successors and set their parents to q
+                in_open = any(node.position == successor for node, _ in self.OPEN)
+                in_closed = successor in self.CLOSED
 
+                if in_open and in_closed:
+                    continue
 
+                if in_open:
+                    open_node = next(node for node, _ in self.OPEN if node.position == successor)
+                    if fCost < open_node.fCost:
+                        open_node.gCost = self.q.gCost + self.distance(successor)
+                        open_node.fCost = fCost
+                        open_node.parent = self.q
+                else:
+                    successor_node = Node()
+                    successor_node.position = successor
+                    successor_node.gCost = self.q.gCost + self.distance(successor)
+                    successor_node.fCost = fCost
+                    successor_node.parent = self.q
+                    self.OPEN.append((successor_node, fCost))
 
-
-
-
-        
-
-
-
+        print("FINAL NODE:", self.q)
+        return self.q
