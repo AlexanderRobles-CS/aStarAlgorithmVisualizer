@@ -1,4 +1,5 @@
 import pygame
+from aStarAlgo import AStar
 from pygame.locals import *
 
 class Visualizer:
@@ -12,14 +13,59 @@ class Visualizer:
         pygame.init()
         self.mouse_down = False
         self.allowAdjustments = True
+        self.rows = 50
+        self.cols = 50
+        self.default_value = 0
+        self.start = (0, 0)
+        self.end = (0, 0)
+        self.grid = self.initalize_grid()
+        self.aStar = AStar()
 
-    def update_color(self, row, col, color):
-        self.colors[row][col] = color
+    def initalize_grid(self):
+        self.grid = [[self.default_value] * self.cols for _ in range(self.rows)]
+        return self.grid
 
     def get_square_indices(self, x, y):
         col = x // (self.square_size + self.gap)
         row = y // (self.square_size + self.gap)
         return row, col
+    
+    def toggle_adjustments(self):
+        self.allowAdjustments = not self.allowAdjustments
+    
+    def extractNodes(self, user):
+        boardStartX = user.startX
+        boardStartY = user.startY
+        boardEndX = user.endX
+        boardEndY = user.endY
+
+        if user.startX == 50 or user.startY == 50:
+            boardStartX = user.startX
+            boardStartY = user.startY
+            if user.startX == 50:
+                boardStartX = 49
+            
+            if user.startY == 50:
+                boardStartY = 49
+            
+        self.grid[boardStartX][boardStartY] = 1
+        self.start = (boardStartX, boardStartY)
+
+        if user.endX == 50 or user.endY == 50:
+            boardEndX = user.endX
+            boardEndY = user.endY
+            if user.endX == 50:
+                boardEndX = 49
+            
+            if user.endY == 50:
+                boardEndY = 49
+            
+        self.grid[boardEndX][boardEndY] = 2
+        self.end = (boardEndX, boardEndY)
+
+    def update_color(self, row, col, color):
+        self.colors[row][col] = color
+
 
     def draw_grid(self, user):
         for row in range(self.height // (self.square_size + self.gap)):
@@ -27,13 +73,27 @@ class Visualizer:
                 x = col * (self.square_size + self.gap)
                 y = row * (self.square_size + self.gap)
                 pygame.draw.rect(self.screen, self.colors[row][col], (x, y, self.square_size, self.square_size))
-
         
-        self.update_color(user.startX, user.startY, (0, 0, 255))  # Update the color of the square at row 2, column 3 to red
-        self.update_color(user.endX, user.endY, (0, 0, 255))      # Update the color of the square at row 4, column 1 to blue
+        self.update_color(user.startX, user.startY, (0, 0, 255))
+        self.update_color(user.endX, user.endY, (0, 0, 255))
 
-    def toggle_adjustments(self):
-        self.allowAdjustments = not self.allowAdjustments
+        self.extractNodes(user)
+
+    def setWalls(self, row, col):
+        detectRow = row
+        detectCol = col
+
+        if row == 50 or col == 50:
+            detectRow = row
+            detectCol = col
+            if row == 50:
+                detectRow = 49
+            
+            if detectCol == 50:
+                detectCol = 49
+
+        self.grid[detectRow][detectCol] = 3
+            
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -41,13 +101,19 @@ class Visualizer:
                 return False
             elif event.type == KEYDOWN:
                 if event.key == K_SPACE:
-                    self.toggle_adjustments()  # Toggle grid adjustments when spacebar is pressed
+                    self.toggle_adjustments()
+
+                    if not self.allowAdjustments:
+                        print("Running Algo")
+                        self.aStar.runAlgo(self)
+
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     x, y = pygame.mouse.get_pos()
                     row, col = self.get_square_indices(x, y)
                     if self.allowAdjustments and 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
-                        self.update_color(row, col, (0, 0, 0))  # Update the color of the clicked square to red
+                        self.update_color(row, col, (0, 0, 0))  # Update the color of the clicked square to black
+                        self.setWalls(row, col)
                         self.mouse_down = True
             elif event.type == MOUSEBUTTONUP:
                 if event.button == 1:  # Left mouse button
@@ -57,7 +123,8 @@ class Visualizer:
                     x, y = pygame.mouse.get_pos()
                     row, col = self.get_square_indices(x, y)
                     if self.allowAdjustments and 0 <= row < len(self.colors) and 0 <= col < len(self.colors[0]):
-                        self.update_color(row, col, (0, 0, 0))  # Update the color of the dragged square to red
+                        self.update_color(row, col, (0, 0, 0))  # Update the color of the dragged square to black
+                        self.setWalls(row, col)
 
         return True
 
