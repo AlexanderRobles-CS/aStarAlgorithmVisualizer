@@ -8,3 +8,8 @@ if __name__ == "__main__":
 
     grid = Visualizer(800, 800, 15, 2)
     grid.run(user)
+
+    if not grid.allowAdjustments:
+        print("Running A* algorithm...")
+    
+    
