@@ -1,8 +1,9 @@
 import pygame
 from aStarAlgo import AStar
 from pygame.locals import *
+from user import User
 
-class Visualizer:
+class Grid:
     def __init__(self, width, height, square_size, gap):
         self.width = width
         self.height = height
@@ -13,15 +14,18 @@ class Visualizer:
         pygame.init()
         self.mouse_down = False
         self.allowAdjustments = True
-        self.rows = 50
-        self.cols = 50
+        self.rows = len(self.colors)  # Update based on colors list dimensions
+        self.cols = len(self.colors[0])  # Update based on colors list dimensions
         self.default_value = 0
         self.start = (0, 0)
         self.end = (0, 0)
-        self.grid = self.initalize_grid()
+        self.grid = self.initialize_grid()
         self.aStar = AStar()
+        self.user = User()
+        self.user.startUp()
+        self.closedList = [[None for _ in range(self.cols)] for _ in range(self.rows)]
 
-    def initalize_grid(self):
+    def initialize_grid(self):
         self.grid = [[self.default_value] * self.cols for _ in range(self.rows)]
         return self.grid
 
@@ -66,18 +70,17 @@ class Visualizer:
     def update_color(self, row, col, color):
         self.colors[row][col] = color
 
-
-    def draw_grid(self, user):
+    def draw_grid(self):
         for row in range(self.height // (self.square_size + self.gap)):
             for col in range(self.width // (self.square_size + self.gap)):
                 x = col * (self.square_size + self.gap)
                 y = row * (self.square_size + self.gap)
                 pygame.draw.rect(self.screen, self.colors[row][col], (x, y, self.square_size, self.square_size))
-        
-        self.update_color(user.startX, user.startY, (0, 0, 255))
-        self.update_color(user.endX, user.endY, (0, 0, 255))
 
-        self.extractNodes(user)
+        self.update_color(self.user.startX, self.user.startY, (0, 0, 255))
+        self.update_color(self.user.endX, self.user.endY, (0, 0, 255))
+
+        self.extractNodes(self.user)
 
     def setWalls(self, row, col):
         detectRow = row
@@ -88,11 +91,15 @@ class Visualizer:
             detectCol = col
             if row == 50:
                 detectRow = 49
-            
+
             if detectCol == 50:
                 detectCol = 49
 
-        self.grid[detectRow][detectCol] = 3
+        self.grid[int(detectRow)][int(detectCol)] = 3  # Convert row and col to integers
+
+    def get_node_value(self, x, y):
+        print("getting node value")
+        print(self.grid[int(x)][int(y)])  # Correct the indexing
             
 
     def handle_events(self):
@@ -105,7 +112,7 @@ class Visualizer:
 
                     if not self.allowAdjustments:
                         print("Running Algo")
-                        self.aStar.runAlgo(self)
+                        self.aStar.runAlgo(self, self.start, self.end)
 
             elif event.type == MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
@@ -128,12 +135,12 @@ class Visualizer:
 
         return True
 
-    def run(self, user):
+    def run(self):
         running = True
         while running:
             running = self.handle_events()
             self.screen.fill((0, 0, 0))
-            self.draw_grid(user)
+            self.draw_grid()
             pygame.display.flip()
 
         pygame.quit()
